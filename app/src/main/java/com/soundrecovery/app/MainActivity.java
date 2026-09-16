@@ -1,0 +1,14 @@
+package com.soundrecovery.app;
+
+import android.Manifest;import android.app.*;import android.os.*;import android.provider.MediaStore;import android.content.*;import android.content.pm.PackageManager;import android.database.Cursor;import android.graphics.Color;import android.net.Uri;import android.view.*;import android.widget.*;import java.util.*;
+
+public class MainActivity extends Activity {
+ LinearLayout box; TextView status; final int REQ=7;
+ @Override public void onCreate(Bundle b){super.onCreate(b); build(); request();}
+ void build(){ ScrollView sv=new ScrollView(this); box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(36,50,36,50); sv.addView(box); TextView h=t("استعادة التسجيلات الصوتية",26);box.addView(h); box.addView(t("يفحص التسجيلات التي ما زالت قابلة للوصول، خصوصًا SoundRecorder وصيغ AAC وAMR. لا يعدّل الملفات الأصلية.",16)); Button q=new Button(this);q.setText("فحص شامل");q.setOnClickListener(v->scan());box.addView(q); status=t("بانتظار الإذن…",15);box.addView(status);setContentView(sv);}
+ TextView t(String s,int z){TextView v=new TextView(this);v.setText(s);v.setTextSize(z);v.setTextColor(Color.rgb(25,25,25));v.setPadding(0,12,0,12);return v;}
+ void request(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.READ_MEDIA_AUDIO)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.READ_MEDIA_AUDIO},REQ);else if(Build.VERSION.SDK_INT<33&&checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},REQ);else scan();}
+ @Override public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==REQ)scan();}
+ void scan(){status.setText("جاري الفحص…"); new Thread(()->{ArrayList<String> rows=new ArrayList<>(); Uri u=MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;String[] pr={MediaStore.Audio.Media.DISPLAY_NAME,MediaStore.Audio.Media.SIZE,MediaStore.Audio.Media.RELATIVE_PATH,MediaStore.Audio.Media._ID}; try(Cursor c=getContentResolver().query(u,pr,null,null,MediaStore.Audio.Media.DATE_MODIFIED+" DESC")){if(c!=null)while(c.moveToNext()){String n=c.getString(0),path=c.getString(2);if(n==null)continue;String lo=n.toLowerCase();if(lo.endsWith(".aac")||lo.endsWith(".amr")||lo.endsWith(".m4a")||lo.endsWith(".mp3")||lo.endsWith(".wav")||(path!=null&&path.toLowerCase().contains("soundrecorder")))rows.add(n+"\n"+(path==null?"":path)+"\n"+(c.getLong(1)/1024)+" KB");}}catch(Exception e){rows.add("خطأ في الفحص: "+e.getMessage());} runOnUiThread(()->showRows(rows));}).start();}
+ void showRows(ArrayList<String> r){status.setText("تم العثور على "+r.size()+" ملف صوتي قابل للوصول"); while(box.getChildCount()>4)box.removeViewAt(4);for(String s:r){TextView v=t(s,14);v.setBackgroundColor(Color.rgb(240,240,240));box.addView(v,new LinearLayout.LayoutParams(-1,-2));}}
+}
